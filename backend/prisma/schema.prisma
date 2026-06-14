@@ -1,0 +1,37 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  accessToken   String?  @db.Text
+  refreshToken  String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Course {
+  id         Int        @id @default(autoincrement())
+  courseCode String
+  deadlines  Deadline[] // Relates to the Deadline model
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Deadline {
+  id                Int      @id @default(autoincrement())
+  title             String
+  dueDate           DateTime // Prisma map strings to real DateTime formats easily
+  weight            String?
+  concentrationArea String?  @db.Text // @db.Text allows long text blocks in MySQL
+  courseId          Int
+  course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
