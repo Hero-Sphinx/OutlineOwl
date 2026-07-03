@@ -26,6 +26,7 @@ export default function App() {
   // Calendar sync
   const [syncingId, setSyncingId] = useState(null);
   const [syncedId, setSyncedId] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Pick up email + session token after Google OAuth redirects back
   useEffect(() => {
@@ -133,6 +134,10 @@ export default function App() {
       if (!res.ok) throw new Error(data.error || 'Failed to parse syllabus.');
       await fetchCourseIndex();
       setActiveCourseId(data.course.id);
+      if (data.calendarSynced > 0) {
+        setSuccessMessage(`${data.calendarSynced} deadline${data.calendarSynced === 1 ? '' : 's'} added to your Google Calendar.`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
     } catch (err) {
       if (err.message !== 'SESSION_EXPIRED') setError(err.message);
     } finally {
@@ -242,6 +247,20 @@ export default function App() {
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
+        {successMessage && (
+          <div className="bg-green-500/10 border-b border-green-500/20 text-green-400 px-6 py-3
+            text-sm flex items-center justify-between gap-4 flex-shrink-0">
+            <span className="font-medium">✓ {successMessage}</span>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage(null)}
+              className="text-xs opacity-60 hover:opacity-100 flex-shrink-0 transition-opacity"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-500/10 border-b border-red-500/20 text-red-400 px-6 py-3
             text-sm flex items-center justify-between gap-4 flex-shrink-0">

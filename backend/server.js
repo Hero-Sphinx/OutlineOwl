@@ -168,7 +168,22 @@ app.post('/api/parse-syllabus', authenticate, upload.single('syllabus'), async (
             include: { deadlines: true },
         });
 
-        return res.status(200).json({ message: 'Syllabus parsed!', course: savedCourse });
+        // Auto-sync to Google Calendar if the user has connected their account
+        let calendarSynced = 0;
+        if (req.user.refreshToken) {
+            const results = await Promise.allSettled(
+                savedCourse.deadlines.map(d => syncDeadlineToCalendar(d, req.user))
+            );
+            calendarSynced = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            if (failed > 0) console.warn(`Calendar sync: ${calendarSynced} succeeded, ${failed} failed.`);
+        }
+
+        return res.status(200).json({
+            message: 'Syllabus parsed!',
+            course: savedCourse,
+            calendarSynced,
+        });
     } catch (error) {
         console.error('Parse error:', error);
         return res.status(500).json({ error: error.message || 'The engine failed.' });
