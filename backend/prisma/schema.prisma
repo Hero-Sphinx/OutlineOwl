@@ -28,7 +28,7 @@ model Deadline {
   id                Int      @id @default(autoincrement())
   title             String
   dueDate           DateTime // Prisma map strings to real DateTime formats easily
-  weight            String?
+  weight            Float?
   concentrationArea String?  @db.Text // @db.Text allows long text blocks in MySQL
   courseId          Int
   course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
