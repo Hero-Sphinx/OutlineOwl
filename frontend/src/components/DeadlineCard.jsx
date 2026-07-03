@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const toDateInput = d => new Date(d).toISOString().split('T')[0];
 
 export default function DeadlineCard({
@@ -72,7 +74,7 @@ function EditForm({ editForm, onEditFormChange, onSave, onCancel }) {
         placeholder="Topic / concentration area (optional)"
         value={editForm.concentrationArea}
         onChange={e => onEditFormChange('concentrationArea', e.target.value)}
-        rows={3}
+        rows={2}
         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white
           placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
       />
@@ -99,68 +101,93 @@ function EditForm({ editForm, onEditFormChange, onSave, onCancel }) {
 }
 
 function DeadlineView({ deadline, cleanDate, onEdit, onSync, syncing, synced, userEmail }) {
+  const [tipsOpen, setTipsOpen] = useState(false);
+
   return (
-    <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between group">
-      <div className="flex-1 flex flex-col md:flex-row md:items-start gap-6">
-        <div className="min-w-[120px]">
-          <span className="inline-block bg-slate-900 border border-slate-800 text-indigo-400
-            font-mono text-xs px-3 py-1.5 rounded-lg font-bold shadow-inner">
-            <span aria-hidden="true">📅</span> {cleanDate}
-          </span>
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="font-bold text-slate-100 text-base">{deadline.title}</h3>
-            {deadline.weight != null && (
-              <span className="text-xs font-semibold bg-indigo-500/10 text-indigo-400
-                border border-indigo-500/20 px-2 py-0.5 rounded-full">
-                {deadline.weight}%
-              </span>
-            )}
-            {synced && (
-              <span className="text-xs font-semibold bg-green-500/10 text-green-400
-                border border-green-500/20 px-2 py-0.5 rounded-full">
-                ✓ Added to Calendar
-              </span>
+    <div className="space-y-3">
+      {/* Main row */}
+      <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between group">
+        <div className="flex-1 flex flex-col md:flex-row md:items-start gap-6">
+          <div className="min-w-[120px]">
+            <span className="inline-block bg-slate-900 border border-slate-800 text-indigo-400
+              font-mono text-xs px-3 py-1.5 rounded-lg font-bold shadow-inner">
+              <span aria-hidden="true">📅</span> {cleanDate}
+            </span>
+          </div>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="font-bold text-slate-100 text-base">{deadline.title}</h3>
+              {deadline.weight != null && (
+                <span className="text-xs font-semibold bg-indigo-500/10 text-indigo-400
+                  border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                  {deadline.weight}%
+                </span>
+              )}
+              {synced && (
+                <span className="text-xs font-semibold bg-green-500/10 text-green-400
+                  border border-green-500/20 px-2 py-0.5 rounded-full">
+                  ✓ Added to Calendar
+                </span>
+              )}
+            </div>
+            {deadline.concentrationArea && (
+              <p className="text-slate-500 text-xs mt-1 font-medium">{deadline.concentrationArea}</p>
             )}
           </div>
-          {deadline.concentrationArea && (
-            <p className="text-slate-400 text-sm mt-1.5 leading-relaxed">
-              {deadline.concentrationArea}
-            </p>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 md:opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+          {deadline.studyTips && (
+            <button
+              type="button"
+              onClick={() => setTipsOpen(o => !o)}
+              title="Study tips"
+              className="text-xs text-slate-500 hover:text-yellow-400 font-semibold
+                py-1 px-2 hover:bg-slate-900 rounded-md transition-colors"
+            >
+              📚
+            </button>
           )}
+          {userEmail && (
+            <button
+              type="button"
+              onClick={onSync}
+              disabled={syncing || synced}
+              title={synced ? 'Added to calendar' : 'Sync to Google Calendar'}
+              className={`text-xs py-1 px-2 rounded-md transition-colors disabled:opacity-40
+                ${synced
+                  ? 'text-green-400 cursor-default'
+                  : 'text-slate-500 hover:text-green-400 hover:bg-slate-900'}`}
+            >
+              {syncing
+                ? <span className="animate-pulse">⏳</span>
+                : synced ? '✓' : '📆'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="text-xs text-slate-500 hover:text-indigo-400 font-semibold
+              py-1 px-2 hover:bg-slate-900 rounded-md transition-colors"
+          >
+            ✏️ Edit
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 md:opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
-        {userEmail && (
-          <button
-            type="button"
-            onClick={onSync}
-            disabled={syncing || synced}
-            title={synced ? 'Added to Google Calendar' : 'Sync to Google Calendar'}
-            className={`text-xs py-1 px-2 rounded-md transition-colors disabled:opacity-40
-              ${synced
-                ? 'text-green-400 cursor-default'
-                : 'text-slate-500 hover:text-green-400 hover:bg-slate-900'}`}
-          >
-            {syncing
-              ? <span className="animate-pulse">⏳</span>
-              : synced
-                ? <span aria-hidden="true">✓</span>
-                : <span aria-hidden="true">📆</span>
-            }
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-xs text-slate-500 hover:text-indigo-400
-            font-semibold py-1 px-2 hover:bg-slate-900 rounded-md transition-colors"
-        >
-          ✏️ Edit
-        </button>
-      </div>
+      {/* Study tips panel */}
+      {deadline.studyTips && tipsOpen && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-2">
+          <p className="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-2">
+            📚 Study Plan
+          </p>
+          <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+            {deadline.studyTips}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

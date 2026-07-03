@@ -8,8 +8,10 @@ export default function Sidebar({
   parsing,
   onDrop,
   userEmail,
+  userProgram,
   onConnectGoogle,
   onSignOut,
+  onEditProfile,
   isAuthenticated,
 }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -83,13 +85,29 @@ export default function Sidebar({
                 {userEmail}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="w-full text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
-            >
-              Sign out
-            </button>
+            {userProgram && (
+              <div className="px-3 py-1.5 bg-slate-900/60 rounded-lg">
+                <p className="text-xs text-slate-500 truncate" title={userProgram}>
+                  📖 {userProgram}
+                </p>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onEditProfile}
+                className="flex-1 text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
+              >
+                Edit profile
+              </button>
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="flex-1 text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         ) : (
           <button

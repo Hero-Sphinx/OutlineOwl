@@ -13,6 +13,8 @@ model User {
   accessToken   String?   @db.Text
   refreshToken  String?   @db.Text
   sessionToken  String?   @unique
+  program       String?
+  phone         String?
   courses       Course[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -34,6 +36,9 @@ model Deadline {
   dueDate           DateTime
   weight            Float?
   concentrationArea String?  @db.Text
+  studyTips         String?  @db.Text
+  smsReminder3d     Boolean  @default(false)
+  smsReminder24h    Boolean  @default(false)
   courseId          Int
   course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())

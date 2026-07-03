@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import CourseWorkspace from './components/CourseWorkspace';
+import OnboardingModal from './components/OnboardingModal';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
 
@@ -14,6 +15,7 @@ export default function App() {
   const [parsing, setParsing] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Inline deadline editing
   const [editingDeadlineId, setEditingDeadlineId] = useState(null);
@@ -23,12 +25,15 @@ export default function App() {
   const [userEmail, setUserEmail] = useState(() => localStorage.getItem('owl_user_email'));
   const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('owl_session_token'));
 
+  // Profile
+  const [userProgram, setUserProgram] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
   // Calendar sync
   const [syncingId, setSyncingId] = useState(null);
   const [syncedId, setSyncedId] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
 
-  // Pick up email + session token after Google OAuth redirects back
+  // Pick up email + token after Google OAuth redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('auth') === 'success') {
@@ -49,15 +54,15 @@ export default function App() {
   const signOut = useCallback(() => {
     setUserEmail(null);
     setSessionToken(null);
+    setUserProgram(null);
     setCourses([]);
     setActiveCourseId(null);
     setActiveCourseData(null);
+    setShowOnboarding(false);
     localStorage.removeItem('owl_user_email');
     localStorage.removeItem('owl_session_token');
   }, []);
 
-  // Wrapper around fetch that always sends the Bearer token.
-  // Automatically signs the user out if the server returns 401.
   const authFetch = useCallback(async (url, options = {}) => {
     const res = await fetch(url, {
       ...options,
@@ -72,6 +77,39 @@ export default function App() {
     }
     return res;
   }, [sessionToken, signOut]);
+
+  /* ── Profile ───────────────────────────────────────────────────── */
+
+  const fetchProfile = useCallback(async () => {
+    if (!sessionToken) return;
+    try {
+      const res = await authFetch(`${API_BASE}/api/user/profile`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setUserProgram(data.program);
+      if (!data.program) setShowOnboarding(true);
+    } catch (err) {
+      if (err.message !== 'SESSION_EXPIRED') console.error('Profile fetch failed:', err);
+    }
+  }, [sessionToken, authFetch]);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  const handleOnboardingComplete = useCallback(async ({ program, phone }) => {
+    const res = await authFetch(`${API_BASE}/api/user/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ program, phone }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to save profile.');
+    }
+    const data = await res.json();
+    setUserProgram(data.program);
+    setShowOnboarding(false);
+    showSuccess('Profile saved! Your study tips will now be personalised.');
+  }, [authFetch]);
 
   /* ── Data fetching ─────────────────────────────────────────────── */
 
@@ -116,6 +154,13 @@ export default function App() {
     return () => { cancelled = true; };
   }, [activeCourseId, sessionToken, authFetch]);
 
+  /* ── Helpers ───────────────────────────────────────────────────── */
+
+  const showSuccess = (msg) => {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
   /* ── Syllabus parsing ──────────────────────────────────────────── */
 
   const onDrop = useCallback(async acceptedFiles => {
@@ -135,8 +180,7 @@ export default function App() {
       await fetchCourseIndex();
       setActiveCourseId(data.course.id);
       if (data.calendarSynced > 0) {
-        setSuccessMessage(`${data.calendarSynced} deadline${data.calendarSynced === 1 ? '' : 's'} added to your Google Calendar.`);
-        setTimeout(() => setSuccessMessage(null), 5000);
+        showSuccess(`${data.calendarSynced} deadline${data.calendarSynced === 1 ? '' : 's'} added to your Google Calendar.`);
       }
     } catch (err) {
       if (err.message !== 'SESSION_EXPIRED') setError(err.message);
@@ -172,7 +216,9 @@ export default function App() {
         setActiveCourseData(prev => ({
           ...prev,
           deadlines: prev.deadlines.map(d =>
-            d.id === id ? { ...d, ...editForm, dueDate: new Date(editForm.dueDate).toISOString() } : d
+            d.id === id
+              ? { ...d, ...editForm, dueDate: new Date(editForm.dueDate).toISOString() }
+              : d
           ),
         }));
         setEditingDeadlineId(null);
@@ -233,6 +279,11 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-900 text-slate-100 font-sans overflow-hidden">
+
+      {showOnboarding && (
+        <OnboardingModal onComplete={handleOnboardingComplete} />
+      )}
+
       <Sidebar
         courses={courses}
         activeCourseId={activeCourseId}
@@ -241,8 +292,10 @@ export default function App() {
         parsing={parsing}
         onDrop={onDrop}
         userEmail={userEmail}
+        userProgram={userProgram}
         onConnectGoogle={handleConnectGoogle}
         onSignOut={signOut}
+        onEditProfile={() => setShowOnboarding(true)}
         isAuthenticated={!!sessionToken}
       />
 
@@ -251,13 +304,8 @@ export default function App() {
           <div className="bg-green-500/10 border-b border-green-500/20 text-green-400 px-6 py-3
             text-sm flex items-center justify-between gap-4 flex-shrink-0">
             <span className="font-medium">✓ {successMessage}</span>
-            <button
-              type="button"
-              onClick={() => setSuccessMessage(null)}
-              className="text-xs opacity-60 hover:opacity-100 flex-shrink-0 transition-opacity"
-            >
-              Dismiss
-            </button>
+            <button type="button" onClick={() => setSuccessMessage(null)}
+              className="text-xs opacity-60 hover:opacity-100 transition-opacity">Dismiss</button>
           </div>
         )}
 
@@ -265,13 +313,8 @@ export default function App() {
           <div className="bg-red-500/10 border-b border-red-500/20 text-red-400 px-6 py-3
             text-sm flex items-center justify-between gap-4 flex-shrink-0">
             <span className="font-medium">⚠️ {error}</span>
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="text-xs opacity-60 hover:opacity-100 flex-shrink-0 transition-opacity"
-            >
-              Dismiss
-            </button>
+            <button type="button" onClick={() => setError(null)}
+              className="text-xs opacity-60 hover:opacity-100 transition-opacity">Dismiss</button>
           </div>
         )}
 
