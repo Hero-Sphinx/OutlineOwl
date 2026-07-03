@@ -22,6 +22,7 @@ export default function App() {
   // Google Calendar auth
   const [userEmail, setUserEmail] = useState(() => localStorage.getItem('owl_user_email'));
   const [syncingId, setSyncingId] = useState(null);
+  const [syncedId, setSyncedId] = useState(null);
 
   // Pick up the email after Google redirects back to the app
   useEffect(() => {
@@ -188,7 +189,8 @@ export default function App() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      if (data.link) window.open(data.link, '_blank', 'noopener,noreferrer');
+      setSyncedId(deadlineId);
+      setTimeout(() => setSyncedId(null), 3000);
     } catch (err) {
       setError(err.message || 'Failed to sync to Google Calendar.');
     } finally {
@@ -245,6 +247,7 @@ export default function App() {
             onEditFormChange={handleEditFormChange}
             onSyncToCalendar={handleSyncToCalendar}
             syncingId={syncingId}
+            syncedId={syncedId}
             userEmail={userEmail}
           />
         </div>

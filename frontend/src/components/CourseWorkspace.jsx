@@ -11,6 +11,7 @@ export default function CourseWorkspace({
   onEditFormChange,
   onSyncToCalendar,
   syncingId,
+  syncedId,
   userEmail,
 }) {
   if (loadingDetails) {
@@ -72,6 +73,7 @@ export default function CourseWorkspace({
               onEditFormChange={onEditFormChange}
               onSyncToCalendar={onSyncToCalendar}
               syncing={syncingId === deadline.id}
+              synced={syncedId === deadline.id}
               userEmail={userEmail}
             />
           ))}

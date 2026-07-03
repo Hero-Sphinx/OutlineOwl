@@ -10,12 +10,14 @@ export default function DeadlineCard({
   onEditFormChange,
   onSyncToCalendar,
   syncing,
+  synced,
   userEmail,
 }) {
   const cleanDate = toDateInput(deadline.dueDate);
 
   return (
-    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all shadow-sm">
+    <div className={`bg-slate-950 border rounded-2xl p-5 transition-all shadow-sm
+      ${synced ? 'border-green-500/40' : 'border-slate-800 hover:border-slate-700'}`}>
       {isEditing ? (
         <EditForm
           editForm={editForm}
@@ -30,6 +32,7 @@ export default function DeadlineCard({
           onEdit={() => onStartEditing(deadline)}
           onSync={() => onSyncToCalendar(deadline.id)}
           syncing={syncing}
+          synced={synced}
           userEmail={userEmail}
         />
       )}
@@ -95,7 +98,7 @@ function EditForm({ editForm, onEditFormChange, onSave, onCancel }) {
   );
 }
 
-function DeadlineView({ deadline, cleanDate, onEdit, onSync, syncing, userEmail }) {
+function DeadlineView({ deadline, cleanDate, onEdit, onSync, syncing, synced, userEmail }) {
   return (
     <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between group">
       <div className="flex-1 flex flex-col md:flex-row md:items-start gap-6">
@@ -114,6 +117,12 @@ function DeadlineView({ deadline, cleanDate, onEdit, onSync, syncing, userEmail 
                 {deadline.weight}%
               </span>
             )}
+            {synced && (
+              <span className="text-xs font-semibold bg-green-500/10 text-green-400
+                border border-green-500/20 px-2 py-0.5 rounded-full">
+                ✓ Added to Calendar
+              </span>
+            )}
           </div>
           {deadline.concentrationArea && (
             <p className="text-slate-400 text-sm mt-1.5 leading-relaxed">
@@ -128,16 +137,19 @@ function DeadlineView({ deadline, cleanDate, onEdit, onSync, syncing, userEmail 
           <button
             type="button"
             onClick={onSync}
-            disabled={syncing}
-            title="Sync to Google Calendar"
-            className="text-slate-500 hover:text-green-400 disabled:opacity-40
-              text-xs py-1 px-2 hover:bg-slate-900 rounded-md transition-colors"
+            disabled={syncing || synced}
+            title={synced ? 'Added to Google Calendar' : 'Sync to Google Calendar'}
+            className={`text-xs py-1 px-2 rounded-md transition-colors disabled:opacity-40
+              ${synced
+                ? 'text-green-400 cursor-default'
+                : 'text-slate-500 hover:text-green-400 hover:bg-slate-900'}`}
           >
-            {syncing ? (
-              <span className="animate-pulse">⏳</span>
-            ) : (
-              <span aria-hidden="true">📆</span>
-            )}
+            {syncing
+              ? <span className="animate-pulse">⏳</span>
+              : synced
+                ? <span aria-hidden="true">✓</span>
+                : <span aria-hidden="true">📆</span>
+            }
           </button>
         )}
         <button
