@@ -19,29 +19,65 @@ export default function App() {
   const [editingDeadlineId, setEditingDeadlineId] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', dueDate: '', weight: '', concentrationArea: '' });
 
-  // Google Calendar auth
+  // Auth
   const [userEmail, setUserEmail] = useState(() => localStorage.getItem('owl_user_email'));
+  const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('owl_session_token'));
+
+  // Calendar sync
   const [syncingId, setSyncingId] = useState(null);
   const [syncedId, setSyncedId] = useState(null);
 
-  // Pick up the email after Google redirects back to the app
+  // Pick up email + session token after Google OAuth redirects back
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('auth') === 'success') {
       const email = params.get('email');
-      if (email) {
+      const token = params.get('token');
+      if (email && token) {
         setUserEmail(email);
+        setSessionToken(token);
         localStorage.setItem('owl_user_email', email);
+        localStorage.setItem('owl_session_token', token);
         window.history.replaceState({}, '', '/');
       }
     }
   }, []);
 
+  /* ── Auth helpers ──────────────────────────────────────────────── */
+
+  const signOut = useCallback(() => {
+    setUserEmail(null);
+    setSessionToken(null);
+    setCourses([]);
+    setActiveCourseId(null);
+    setActiveCourseData(null);
+    localStorage.removeItem('owl_user_email');
+    localStorage.removeItem('owl_session_token');
+  }, []);
+
+  // Wrapper around fetch that always sends the Bearer token.
+  // Automatically signs the user out if the server returns 401.
+  const authFetch = useCallback(async (url, options = {}) => {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+      },
+    });
+    if (res.status === 401) {
+      signOut();
+      throw new Error('SESSION_EXPIRED');
+    }
+    return res;
+  }, [sessionToken, signOut]);
+
   /* ── Data fetching ─────────────────────────────────────────────── */
 
   const fetchCourseIndex = useCallback(async () => {
+    if (!sessionToken) return;
     try {
-      const res = await fetch(`${API_BASE}/api/courses`);
+      const res = await authFetch(`${API_BASE}/api/courses`);
       const data = await res.json();
       if (res.ok) {
         setCourses(data);
@@ -49,27 +85,27 @@ export default function App() {
       } else {
         setError('Failed to load courses.');
       }
-    } catch {
-      setError('Could not connect to the server.');
+    } catch (err) {
+      if (err.message !== 'SESSION_EXPIRED') setError('Could not connect to the server.');
     }
-  }, []);
+  }, [sessionToken, authFetch]);
 
   useEffect(() => { fetchCourseIndex(); }, [fetchCourseIndex]);
 
   useEffect(() => {
-    if (!activeCourseId) return;
+    if (!activeCourseId || !sessionToken) return;
     let cancelled = false;
 
     const load = async () => {
       setLoadingDetails(true);
       try {
-        const res = await fetch(`${API_BASE}/api/courses/${activeCourseId}`);
+        const res = await authFetch(`${API_BASE}/api/courses/${activeCourseId}`);
         const data = await res.json();
         if (cancelled) return;
         if (res.ok) setActiveCourseData(data);
         else setError(data.error || 'Failed to load course details.');
-      } catch {
-        if (!cancelled) setError('Could not load course details.');
+      } catch (err) {
+        if (!cancelled && err.message !== 'SESSION_EXPIRED') setError('Could not load course details.');
       } finally {
         if (!cancelled) setLoadingDetails(false);
       }
@@ -77,7 +113,7 @@ export default function App() {
 
     load();
     return () => { cancelled = true; };
-  }, [activeCourseId]);
+  }, [activeCourseId, sessionToken, authFetch]);
 
   /* ── Syllabus parsing ──────────────────────────────────────────── */
 
@@ -92,17 +128,17 @@ export default function App() {
     formData.append('syllabus', file);
 
     try {
-      const res = await fetch(`${API_BASE}/api/parse-syllabus`, { method: 'POST', body: formData });
+      const res = await authFetch(`${API_BASE}/api/parse-syllabus`, { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to parse syllabus.');
       await fetchCourseIndex();
       setActiveCourseId(data.course.id);
     } catch (err) {
-      setError(err.message);
+      if (err.message !== 'SESSION_EXPIRED') setError(err.message);
     } finally {
       setParsing(false);
     }
-  }, [fetchCourseIndex]);
+  }, [authFetch, fetchCourseIndex]);
 
   /* ── Deadline editing ──────────────────────────────────────────── */
 
@@ -122,7 +158,7 @@ export default function App() {
 
   const saveDeadlineUpdate = useCallback(async id => {
     try {
-      const res = await fetch(`${API_BASE}/api/deadlines/${id}`, {
+      const res = await authFetch(`${API_BASE}/api/deadlines/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
@@ -131,26 +167,24 @@ export default function App() {
         setActiveCourseData(prev => ({
           ...prev,
           deadlines: prev.deadlines.map(d =>
-            d.id === id
-              ? { ...d, ...editForm, dueDate: new Date(editForm.dueDate).toISOString() }
-              : d
+            d.id === id ? { ...d, ...editForm, dueDate: new Date(editForm.dueDate).toISOString() } : d
           ),
         }));
         setEditingDeadlineId(null);
       } else {
         setError('Failed to save changes.');
       }
-    } catch {
-      setError('Could not save changes.');
+    } catch (err) {
+      if (err.message !== 'SESSION_EXPIRED') setError('Could not save changes.');
     }
-  }, [editForm]);
+  }, [authFetch, editForm]);
 
   /* ── Course deletion ───────────────────────────────────────────── */
 
   const deleteCourse = useCallback(async id => {
     if (!window.confirm('Delete this course and all its deadlines?')) return;
     try {
-      const res = await fetch(`${API_BASE}/api/courses/${id}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/api/courses/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setActiveCourseId(null);
         setActiveCourseData(null);
@@ -158,10 +192,10 @@ export default function App() {
       } else {
         setError('Failed to delete course.');
       }
-    } catch {
-      setError('Could not delete course.');
+    } catch (err) {
+      if (err.message !== 'SESSION_EXPIRED') setError('Could not delete course.');
     }
-  }, [fetchCourseIndex]);
+  }, [authFetch, fetchCourseIndex]);
 
   /* ── Google Calendar ───────────────────────────────────────────── */
 
@@ -176,27 +210,19 @@ export default function App() {
   }, []);
 
   const handleSyncToCalendar = useCallback(async deadlineId => {
-    if (!userEmail) {
-      setError('Connect your Google Calendar first using the button in the sidebar.');
-      return;
-    }
     setSyncingId(deadlineId);
     try {
-      const res = await fetch(`${API_BASE}/api/sync-deadline/${deadlineId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userEmail }),
-      });
+      const res = await authFetch(`${API_BASE}/api/sync-deadline/${deadlineId}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSyncedId(deadlineId);
       setTimeout(() => setSyncedId(null), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to sync to Google Calendar.');
+      if (err.message !== 'SESSION_EXPIRED') setError(err.message || 'Failed to sync to Google Calendar.');
     } finally {
       setSyncingId(null);
     }
-  }, [userEmail]);
+  }, [authFetch]);
 
   /* ── Render ────────────────────────────────────────────────────── */
 
@@ -211,6 +237,8 @@ export default function App() {
         onDrop={onDrop}
         userEmail={userEmail}
         onConnectGoogle={handleConnectGoogle}
+        onSignOut={signOut}
+        isAuthenticated={!!sessionToken}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -236,20 +264,30 @@ export default function App() {
         )}
 
         <div className="flex-1 p-8 overflow-y-auto">
-          <CourseWorkspace
-            courseData={activeCourseData}
-            loadingDetails={loadingDetails}
-            editingDeadlineId={editingDeadlineId}
-            editForm={editForm}
-            onStartEditing={startEditing}
-            onSaveUpdate={saveDeadlineUpdate}
-            onCancelEdit={() => setEditingDeadlineId(null)}
-            onEditFormChange={handleEditFormChange}
-            onSyncToCalendar={handleSyncToCalendar}
-            syncingId={syncingId}
-            syncedId={syncedId}
-            userEmail={userEmail}
-          />
+          {!sessionToken ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-8">
+              <span className="text-6xl mb-4" aria-hidden="true">🦉</span>
+              <h3 className="text-xl font-bold text-white mb-2">Welcome to OutlineOwl</h3>
+              <p className="text-sm text-slate-500 max-w-xs">
+                Sign in with Google using the button in the sidebar to start tracking your deadlines.
+              </p>
+            </div>
+          ) : (
+            <CourseWorkspace
+              courseData={activeCourseData}
+              loadingDetails={loadingDetails}
+              editingDeadlineId={editingDeadlineId}
+              editForm={editForm}
+              onStartEditing={startEditing}
+              onSaveUpdate={saveDeadlineUpdate}
+              onCancelEdit={() => setEditingDeadlineId(null)}
+              onEditFormChange={handleEditFormChange}
+              onSyncToCalendar={handleSyncToCalendar}
+              syncingId={syncingId}
+              syncedId={syncedId}
+              userEmail={userEmail}
+            />
+          )}
         </div>
       </main>
     </div>

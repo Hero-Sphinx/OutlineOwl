@@ -8,18 +8,22 @@ generator client {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
-  email         String   @unique
-  accessToken   String?  @db.Text
-  refreshToken  String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  accessToken   String?   @db.Text
+  refreshToken  String?   @db.Text
+  sessionToken  String?   @unique
+  courses       Course[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Course {
   id         Int        @id @default(autoincrement())
   courseCode String
-  deadlines  Deadline[] // Relates to the Deadline model
+  userId     Int
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deadlines  Deadline[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -27,9 +31,9 @@ model Course {
 model Deadline {
   id                Int      @id @default(autoincrement())
   title             String
-  dueDate           DateTime // Prisma map strings to real DateTime formats easily
+  dueDate           DateTime
   weight            Float?
-  concentrationArea String?  @db.Text // @db.Text allows long text blocks in MySQL
+  concentrationArea String?  @db.Text
   courseId          Int
   course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())

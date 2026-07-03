@@ -9,6 +9,8 @@ export default function Sidebar({
   onDrop,
   userEmail,
   onConnectGoogle,
+  onSignOut,
+  isAuthenticated,
 }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -73,12 +75,21 @@ export default function Sidebar({
           </p>
         </div>
 
-        {userEmail ? (
-          <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" aria-hidden="true" />
-            <span className="text-xs text-green-400 font-medium truncate" title={userEmail}>
-              {userEmail}
-            </span>
+        {isAuthenticated && userEmail ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" aria-hidden="true" />
+              <span className="text-xs text-green-400 font-medium truncate flex-1" title={userEmail}>
+                {userEmail}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="w-full text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
+            >
+              Sign out
+            </button>
           </div>
         ) : (
           <button
@@ -89,7 +100,7 @@ export default function Sidebar({
               rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-all"
           >
             <GoogleIcon />
-            Connect Google Calendar
+            Sign in with Google
           </button>
         )}
       </div>
