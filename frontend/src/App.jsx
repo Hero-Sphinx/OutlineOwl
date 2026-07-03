@@ -1,40 +1,45 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+
+const toDateInput = (d) => new Date(d).toISOString().split('T')[0];
+
 function App() {
-  // Course management states
   const [courses, setCourses] = useState([]);
   const [activeCourseId, setActiveCourseId] = useState(null);
   const [activeCourseData, setActiveCourseData] = useState(null);
 
-  // App UI states
   const [parsing, setParsing] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [error, setError] = useState(null);
 
-  // Editing state machine tracks which deadline cell row is currently open
   const [editingDeadlineId, setEditingDeadlineId] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', dueDate: '', weight: '', concentrationArea: '' });
 
   // 1. FETCH ALL COURSES (Loads left sidebar index tray)
-  const fetchCourseIndex = async () => {
+  const fetchCourseIndex = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/courses');
+      const response = await fetch(`${API_BASE}/api/courses`);
       const data = await response.json();
       if (response.ok) {
         setCourses(data);
-        if (data.length > 0 && !activeCourseId) {
-          setActiveCourseId(data[0].id);
+        // Only select the first course if nothing is active yet
+        if (data.length > 0) {
+          setActiveCourseId(prev => prev ?? data[0].id);
         }
+      } else {
+        setError('Failed to load courses.');
       }
     } catch (err) {
       console.error("Failed fetching indexes:", err);
+      setError('Could not connect to the server.');
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCourseIndex();
-  }, []);
+  }, [fetchCourseIndex]);
 
   // 2. FETCH ACTIVE COURSE WORKSPACE (Loads primary list window view)
   useEffect(() => {
@@ -43,15 +48,15 @@ function App() {
     const fetchCourseDetails = async () => {
       setLoadingDetails(true);
       try {
-        const response = await fetch(`http://localhost:5000/api/courses/${activeCourseId}`);
+        const response = await fetch(`${API_BASE}/api/courses/${activeCourseId}`);
         const data = await response.json();
         if (response.ok) {
           setActiveCourseData(data);
         } else {
-          setError(data.error);
+          setError(data.error || 'Failed to load course details.');
         }
       } catch (err) {
-        setError("Could not hook onto server stream details.");
+        setError('Could not load course details.');
       } finally {
         setLoadingDetails(false);
       }
@@ -72,13 +77,13 @@ function App() {
     formData.append('syllabus', file);
 
     try {
-      const response = await fetch('http://localhost:5000/api/parse-syllabus', {
+      const response = await fetch(`${API_BASE}/api/parse-syllabus`, {
         method: 'POST',
         body: formData,
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || 'Failed parsing process operation pipeline.');
+      if (!response.ok) throw new Error(data.error || 'Failed to parse syllabus.');
 
       await fetchCourseIndex();
       setActiveCourseId(data.course.id);
@@ -87,7 +92,7 @@ function App() {
     } finally {
       setParsing(false);
     }
-  }, []);
+  }, [fetchCourseIndex]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -100,7 +105,7 @@ function App() {
     setEditingDeadlineId(deadline.id);
     setEditForm({
       title: deadline.title,
-      dueDate: new Date(deadline.dueDate).toISOString().split('T')[0],
+      dueDate: toDateInput(deadline.dueDate),
       weight: deadline.weight || '',
       concentrationArea: deadline.concentrationArea || ''
     });
@@ -108,7 +113,7 @@ function App() {
 
   const saveDeadlineUpdate = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/deadlines/${id}`, {
+      const response = await fetch(`${API_BASE}/api/deadlines/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
@@ -120,9 +125,11 @@ function App() {
           deadlines: prev.deadlines.map(d => d.id === id ? { ...d, ...editForm, dueDate: new Date(editForm.dueDate).toISOString() } : d)
         }));
         setEditingDeadlineId(null);
+      } else {
+        setError('Failed to save changes.');
       }
     } catch (err) {
-      setError("Failed modification save stream push.");
+      setError('Could not save changes.');
     }
   };
 
@@ -130,14 +137,16 @@ function App() {
   const deleteCourseWorkspace = async (id) => {
     if (!window.confirm("Are you sure you want to completely erase this course track?")) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/courses/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/courses/${id}`, { method: 'DELETE' });
       if (response.ok) {
         setActiveCourseId(null);
         setActiveCourseData(null);
-        fetchCourseIndex();
+        await fetchCourseIndex();
+      } else {
+        setError('Failed to delete course.');
       }
     } catch (err) {
-      setError("Failed workspace purge pipeline operations.");
+      setError('Could not delete course.');
     }
   };
 
@@ -146,7 +155,7 @@ function App() {
       <aside className="w-80 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
         <div className="p-6 overflow-y-auto flex-1">
           <div className="flex items-center gap-3 mb-8">
-            <span className="text-3xl">🦉</span>
+            <span className="text-3xl" aria-hidden="true">🦉</span>
             <h1 className="text-xl font-black tracking-wider text-indigo-400 uppercase">OutlineOwl</h1>
           </div>
 
@@ -160,12 +169,14 @@ function App() {
                   ${activeCourseId === c.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-900/50 text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
               >
                 <span>📘 {c.courseCode}</span>
-                <span 
+                <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); deleteCourseWorkspace(c.id); }}
                   className="opacity-0 group-hover:opacity-100 hover:text-red-400 text-xs px-1 transition-all"
+                  aria-label={`Delete ${c.courseCode}`}
                 >
-                  🗑️
-                </span>
+                  <span aria-hidden="true">🗑️</span>
+                </button>
               </button>
             ))}
           </div>
@@ -213,7 +224,7 @@ function App() {
               <div className="space-y-4">
                 {activeCourseData.deadlines?.map((deadline) => {
                   const isEditing = editingDeadlineId === deadline.id;
-                  const cleanDate = new Date(deadline.dueDate).toISOString().split('T')[0];
+                  const cleanDate = toDateInput(deadline.dueDate);
 
                   return (
                     <div key={deadline.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all shadow-sm">
@@ -235,7 +246,7 @@ function App() {
                           <div className="flex-1 flex flex-col md:flex-row md:items-start gap-6">
                             <div className="min-w-[110px]">
                               <span className="inline-block bg-slate-900 border border-slate-800 text-indigo-400 font-mono text-xs px-3 py-1.5 rounded-lg font-bold shadow-inner">
-                                📅 {cleanDate}
+                                <span aria-hidden="true">📅</span> {cleanDate}
                               </span>
                             </div>
                             <div className="flex-1">
@@ -255,7 +266,7 @@ function App() {
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <span className="text-6xl mb-4">🚀</span>
+              <span className="text-6xl mb-4" aria-hidden="true">🚀</span>
               <h3 className="text-xl font-bold text-white mb-2">Initialize OutlineOwl Dashboard</h3>
               <p className="text-sm text-slate-500">Drop a syllabus PDF into the tray to start tracking.</p>
             </div>
