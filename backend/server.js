@@ -101,7 +101,8 @@ app.get('/api/auth/google/callback', async (req, res) => {
             }
         });
 
-        res.send(`Successfully authenticated ${userInfo.data.email}! Tokens saved to DB.`);
+        const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+        res.redirect(`${frontendUrl}?auth=success&email=${encodeURIComponent(userInfo.data.email)}`);
     } catch (error) {
         console.error("Auth error:", error);
         res.status(500).send("Authentication failed.");
@@ -111,16 +112,21 @@ app.get('/api/auth/google/callback', async (req, res) => {
 /* --- SYLLABUS & COURSE ROUTES --- */
 
 app.post('/api/sync-deadline/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid deadline ID.' });
+
+    const { userEmail } = req.body;
+    if (!userEmail) return res.status(400).json({ error: 'userEmail is required.' });
+
     try {
-        const deadline = await prisma.deadline.findUnique({ where: { id: parseInt(req.params.id) } });
-        if (!deadline) return res.status(404).json({ error: "Deadline not found." });
+        const deadline = await prisma.deadline.findUnique({ where: { id } });
+        if (!deadline) return res.status(404).json({ error: 'Deadline not found.' });
 
-        const calendarLink = await syncDeadlineToCalendar(deadline, 'salamiolanrewajutemmy@gmail.com');
-
-        res.json({ message: "Successfully synced!", link: calendarLink });
+        const calendarLink = await syncDeadlineToCalendar(deadline, userEmail);
+        res.json({ message: 'Successfully synced!', link: calendarLink });
     } catch (error) {
         console.error("Sync error:", error);
-        res.status(500).json({ error: "Failed to sync to calendar." });
+        res.status(500).json({ error: error.message || 'Failed to sync to calendar.' });
     }
 });
 
