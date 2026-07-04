@@ -2,7 +2,7 @@
 
 > **Upload a syllabus. Never miss a deadline again.**
 
-OutlineOwl is an AI-powered student deadline tracker. Drop in a course outline PDF and the system automatically extracts every graded assessment, syncs them to your Google Calendar, generates a personalized study plan for each one, and sends you SMS reminders 3 days and 24 hours before they're due.
+OutlineOwl is an AI-powered student deadline tracker. Drop in a course outline PDF and the system automatically extracts every graded assessment, syncs them to your Google Calendar, generates a personalised study plan for each one, and sends you SMS reminders 3 days and 24 hours before they're due.
 
 **Live →** [outlineowl.vercel.app](https://outlineowl.vercel.app)
 
