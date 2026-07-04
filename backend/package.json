@@ -4,7 +4,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "prisma generate",
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "keywords": [],
   "author": "",
@@ -12,19 +14,18 @@
   "description": "",
   "dependencies": {
     "@google/genai": "^2.5.0",
+    "@prisma/client": "^6.19.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "googleapis": "^172.0.0",
     "multer": "^2.1.1",
-    "mysql2": "^3.22.3",
     "node-cron": "^4.5.0",
+    "prisma": "^6.19.3",
     "twilio": "^6.0.2",
     "unpdf": "^1.6.2"
   },
   "devDependencies": {
-    "@prisma/client": "^6.19.3",
-    "nodemon": "^3.1.14",
-    "prisma": "^6.19.3"
+    "nodemon": "^3.1.14"
   }
 }

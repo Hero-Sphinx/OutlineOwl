@@ -8,13 +8,13 @@ import { google } from 'googleapis';
 import { randomBytes } from 'crypto';
 import twilio from 'twilio';
 import cron from 'node-cron';
-import fs from 'fs';
 import 'dotenv/config';
 
-const credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf8'));
-const { client_id, client_secret, redirect_uris } = credentials.web;
+const client_id = process.env.GOOGLE_CLIENT_ID;
+const client_secret = process.env.GOOGLE_CLIENT_SECRET;
+const redirect_uri = process.env.GOOGLE_REDIRECT_URI;
 
-const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uri);
 
 const app = express();
 const prisma = new PrismaClient();
@@ -64,7 +64,7 @@ async function authenticate(req, res, next) {
 async function syncDeadlineToCalendar(deadline, user) {
     if (!user.refreshToken) throw new Error('Google Calendar not connected for this account.');
 
-    const client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+    const client = new google.auth.OAuth2(client_id, client_secret, redirect_uri);
     client.setCredentials({ refresh_token: user.refreshToken });
 
     const calendar = google.calendar({ version: 'v3', auth: client });
@@ -191,7 +191,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
     try {
         const { tokens } = await oauth2Client.getToken(code);
 
-        const authedClient = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+        const authedClient = new google.auth.OAuth2(client_id, client_secret, redirect_uri);
         authedClient.setCredentials(tokens);
 
         const oauth2 = google.oauth2({ version: 'v2', auth: authedClient });
