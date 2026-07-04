@@ -13,6 +13,8 @@ export default function Sidebar({
   onSignOut,
   onEditProfile,
   isAuthenticated,
+  sidebarOpen,
+  onCloseSidebar,
 }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -21,108 +23,138 @@ export default function Sidebar({
   });
 
   return (
-    <aside className="w-80 bg-slate-950 border-r border-slate-800 flex flex-col justify-between flex-shrink-0">
-      {/* Header + course list */}
-      <div className="p-6 overflow-y-auto flex-1">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="text-3xl" aria-hidden="true">🦉</span>
-          <h1 className="text-xl font-black tracking-wider text-indigo-400 uppercase">OutlineOwl</h1>
-        </div>
+    <>
+      {/* Backdrop — mobile only */}
+      <div
+        className={`fixed inset-0 z-30 bg-black/60 md:hidden transition-opacity duration-300
+          ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={onCloseSidebar}
+        aria-hidden="true"
+      />
 
-        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
-          Tracking Workspaces
-        </h2>
-
-        <div className="space-y-2">
-          {courses.length === 0 && (
-            <p className="text-xs text-slate-600 italic px-1">No courses yet. Drop a syllabus below.</p>
-          )}
-          {courses.map(c => (
+      <aside className={`
+        fixed md:relative inset-y-0 left-0 z-40
+        w-72 md:w-80 bg-slate-950 border-r border-slate-800
+        flex flex-col justify-between flex-shrink-0
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+      `}>
+        {/* Header + course list */}
+        <div className="p-5 md:p-6 overflow-y-auto flex-1">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl" aria-hidden="true">🦉</span>
+              <h1 className="text-xl font-black tracking-wider text-indigo-400 uppercase">OutlineOwl</h1>
+            </div>
+            {/* Close button — mobile only */}
             <button
-              key={c.id}
               type="button"
-              onClick={() => onCourseSelect(c.id)}
-              className={`w-full text-left px-4 py-3 rounded-xl transition-all font-semibold text-sm
-                flex justify-between items-center group
-                ${activeCourseId === c.id
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'bg-slate-900/50 text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-                }`}
+              onClick={onCloseSidebar}
+              className="md:hidden text-slate-500 hover:text-white transition-colors p-1"
+              aria-label="Close menu"
             >
-              <span>📘 {c.courseCode}</span>
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onDeleteCourse(c.id); }}
-                className="opacity-0 group-hover:opacity-100 hover:text-red-400 text-xs px-1 transition-all"
-                aria-label={`Delete ${c.courseCode}`}
-              >
-                <span aria-hidden="true">🗑️</span>
-              </button>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Footer: drop zone + Google auth status */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950 space-y-3">
-        <div
-          {...getRootProps()}
-          className={`border border-dashed rounded-xl p-4 text-center cursor-pointer transition-all
-            bg-slate-900/40 hover:bg-slate-900/80
-            ${isDragActive ? 'border-indigo-500 bg-indigo-500/5' : 'border-slate-700'}`}
-        >
-          <input {...getInputProps()} />
-          <p className="text-xs text-slate-400 font-medium">
-            {parsing ? 'Parsing syllabus...' : '⚡ Drop a syllabus PDF here'}
-          </p>
-        </div>
-
-        {isAuthenticated && userEmail ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" aria-hidden="true" />
-              <span className="text-xs text-green-400 font-medium truncate flex-1" title={userEmail}>
-                {userEmail}
-              </span>
-            </div>
-            {userProgram && (
-              <div className="px-3 py-1.5 bg-slate-900/60 rounded-lg">
-                <p className="text-xs text-slate-500 truncate" title={userProgram}>
-                  📖 {userProgram}
-                </p>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onEditProfile}
-                className="flex-1 text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
-              >
-                Edit profile
-              </button>
-              <button
-                type="button"
-                onClick={onSignOut}
-                className="flex-1 text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
-              >
-                Sign out
-              </button>
-            </div>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={onConnectGoogle}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5
-              bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-500
-              rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-all"
+
+          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
+            Tracking Workspaces
+          </h2>
+
+          <div className="space-y-2">
+            {courses.length === 0 && (
+              <p className="text-xs text-slate-600 italic px-1">No courses yet. Drop a syllabus below.</p>
+            )}
+            {courses.map(c => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onCourseSelect(c.id)}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-all font-semibold text-sm
+                  flex justify-between items-center group
+                  ${activeCourseId === c.id
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : 'bg-slate-900/50 text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                  }`}
+              >
+                <span>📘 {c.courseCode}</span>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onDeleteCourse(c.id); }}
+                  className="opacity-0 group-hover:opacity-100 hover:text-red-400 text-xs px-1 transition-all"
+                  aria-label={`Delete ${c.courseCode}`}
+                >
+                  <span aria-hidden="true">🗑️</span>
+                </button>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer: drop zone + auth status */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950 space-y-3">
+          <div
+            {...getRootProps()}
+            className={`border border-dashed rounded-xl p-4 text-center cursor-pointer transition-all
+              bg-slate-900/40 hover:bg-slate-900/80
+              ${isDragActive ? 'border-indigo-500 bg-indigo-500/5' : 'border-slate-700'}`}
           >
-            <GoogleIcon />
-            Sign in with Google
-          </button>
-        )}
-      </div>
-    </aside>
+            <input {...getInputProps()} />
+            <p className="text-xs text-slate-400 font-medium">
+              {parsing ? 'Parsing syllabus...' : '⚡ Drop a syllabus PDF here'}
+            </p>
+          </div>
+
+          {isAuthenticated && userEmail ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" aria-hidden="true" />
+                <span className="text-xs text-green-400 font-medium truncate flex-1" title={userEmail}>
+                  {userEmail}
+                </span>
+              </div>
+              {userProgram && (
+                <div className="px-3 py-1.5 bg-slate-900/60 rounded-lg">
+                  <p className="text-xs text-slate-500 truncate" title={userProgram}>
+                    📖 {userProgram}
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onEditProfile}
+                  className="flex-1 text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
+                >
+                  Edit profile
+                </button>
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="flex-1 text-xs text-slate-600 hover:text-slate-400 transition-colors py-1"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onConnectGoogle}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5
+                bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-500
+                rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-all"
+            >
+              <GoogleIcon />
+              Sign in with Google
+            </button>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }
 

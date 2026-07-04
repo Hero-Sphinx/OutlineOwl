@@ -16,6 +16,7 @@ export default function App() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Inline deadline editing
   const [editingDeadlineId, setEditingDeadlineId] = useState(null);
@@ -161,6 +162,11 @@ export default function App() {
     setTimeout(() => setSuccessMessage(null), 5000);
   };
 
+  const handleCourseSelect = useCallback((id) => {
+    setActiveCourseId(id);
+    setSidebarOpen(false);
+  }, []);
+
   /* ── Syllabus parsing ──────────────────────────────────────────── */
 
   const onDrop = useCallback(async acceptedFiles => {
@@ -169,6 +175,7 @@ export default function App() {
 
     setParsing(true);
     setError(null);
+    setSidebarOpen(false);
 
     const formData = new FormData();
     formData.append('syllabus', file);
@@ -287,7 +294,7 @@ export default function App() {
       <Sidebar
         courses={courses}
         activeCourseId={activeCourseId}
-        onCourseSelect={setActiveCourseId}
+        onCourseSelect={handleCourseSelect}
         onDeleteCourse={deleteCourse}
         parsing={parsing}
         onDrop={onDrop}
@@ -297,24 +304,41 @@ export default function App() {
         onSignOut={signOut}
         onEditProfile={() => setShowOnboarding(true)}
         isAuthenticated={!!sessionToken}
+        sidebarOpen={sidebarOpen}
+        onCloseSidebar={() => setSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-slate-950 border-b border-slate-800 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="text-slate-400 hover:text-white transition-colors p-1"
+            aria-label="Open menu"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <span className="text-sm font-black tracking-wider text-indigo-400 uppercase">OutlineOwl</span>
+        </div>
+
         {successMessage && (
-          <div className="bg-green-500/10 border-b border-green-500/20 text-green-400 px-6 py-3
+          <div className="bg-green-500/10 border-b border-green-500/20 text-green-400 px-4 md:px-6 py-3
             text-sm flex items-center justify-between gap-4 flex-shrink-0">
             <span className="font-medium">✓ {successMessage}</span>
             <button type="button" onClick={() => setSuccessMessage(null)}
-              className="text-xs opacity-60 hover:opacity-100 transition-opacity">Dismiss</button>
+              className="text-xs opacity-60 hover:opacity-100 transition-opacity flex-shrink-0">Dismiss</button>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-500/10 border-b border-red-500/20 text-red-400 px-6 py-3
+          <div className="bg-red-500/10 border-b border-red-500/20 text-red-400 px-4 md:px-6 py-3
             text-sm flex items-center justify-between gap-4 flex-shrink-0">
             <span className="font-medium">⚠️ {error}</span>
             <button type="button" onClick={() => setError(null)}
-              className="text-xs opacity-60 hover:opacity-100 transition-opacity">Dismiss</button>
+              className="text-xs opacity-60 hover:opacity-100 transition-opacity flex-shrink-0">Dismiss</button>
           </div>
         )}
 
@@ -325,7 +349,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
           {!sessionToken ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-8">
               <span className="text-6xl mb-4" aria-hidden="true">🦉</span>
@@ -333,6 +357,14 @@ export default function App() {
               <p className="text-sm text-slate-500 max-w-xs">
                 Sign in with Google using the button in the sidebar to start tracking your deadlines.
               </p>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="mt-4 md:hidden px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white
+                  text-sm font-semibold rounded-xl transition-colors"
+              >
+                Open Menu to Sign In
+              </button>
             </div>
           ) : (
             <CourseWorkspace
