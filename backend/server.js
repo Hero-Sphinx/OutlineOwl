@@ -170,6 +170,10 @@ cron.schedule('0 * * * *', async () => {
     }
 });
 
+/* --- HEALTH CHECK --- */
+
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 /* --- GOOGLE OAUTH ROUTES (public) --- */
 
 app.get('/api/auth/google/url', (req, res) => {
